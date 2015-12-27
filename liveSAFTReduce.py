@@ -5,6 +5,7 @@ import datetime, time
 import numpy
 import ppgplot
 import generalUtils, configHelper
+import saftClasses
 from astropy.io import fits
 
 def checkForNewFiles():
@@ -62,13 +63,13 @@ if __name__ == "__main__":
 	
 	frameFilename = fileList[0]
 	
-	hdulist = fits.open(frameFilename)
 	
-	print hdulist.info()
-	for card in hdulist:
-		# print card.header
-		print card.header.keys()
-		print repr(card.header)
+	frameCounter = 0
+	
+	hdulist = fits.open(frameFilename)
+	frame = saftClasses.frameObject()
+	frame.initFromFITS(hdulist)
+	frameCounter+=1
 	
 	imageData =  hdulist[0].data
 	hdulist.close()
@@ -87,13 +88,15 @@ if __name__ == "__main__":
 	
 	if numFrames == 1: sys.exit()
 	
-	
+	# Catch up on all frames found so far
 	for index in range(1, numFrames):
-		hdulist = fits.open(fileList[index])		
-		imageData =  hdulist[0].data
+		hdulist = fits.open(fileList[index])
+		frame = saftClasses.frameObject(index = frameCounter)
+		frame.initFromFITS(hdulist)
+		frameCounter+=1		
 		hdulist.close()
-		boostedImage = generalUtils.percentiles(imageData, 20, 99)
-		ppgplot.pggray(boostedImage, 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+		ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+		print frame.__str__(long=True)
 	
 	try:
 		while True:
@@ -102,11 +105,12 @@ if __name__ == "__main__":
 			for f in newFiles:
 				fileList.append(f)
 				hdulist = fits.open(f)
-				imageData =  hdulist[0].data
+				frame = saftClasses.frameObject(index = frameCounter)
+				frame.initFromFITS(hdulist)
+				frameCounter+=1		
 				hdulist.close()
 			
-				boostedImage = generalUtils.percentiles(imageData, 20, 99)
-				ppgplot.pggray(boostedImage, 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+				ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
 			
 	except KeyboardInterrupt:
 		ppgplot.pgclos()
