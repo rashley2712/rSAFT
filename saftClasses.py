@@ -1,5 +1,6 @@
 import numpy
 import generalUtils
+from astropy.io import fits
 
 class frameObject:
 	""" This is a class of an individual frame
@@ -19,17 +20,25 @@ class frameObject:
 		self.bitmap = None
 		self.filename = None
 		self.index = index
+		self.frameType = None     # Should be bias/flat/dark/science/balance
 		
-
 	def boostedImage(self, lower=20, upper=99):
 		return generalUtils.percentiles(self.imageData, lower, upper)
 
-
-	def initFromFITS(self, hdulist):
-		self.timeStamp = 20
-				
-		card = hdulist[0]
+	def initFromFile(self, filename):
+		hdulist = fits.open(filename)
+		self.initFromFITS(hdulist)
+		hdulist.close()
 		
+	def subtractFrame(self, otherFrame):
+		if (self.xBinning != otherFrame.xBinning) or (self.yBinning != otherFrame.yBinning):
+			print "WARNING: Unable to subtract a frame with different binning!"
+			return
+		self.imageData = numpy.subtract(self.imageData, otherFrame.imageData)
+		
+	def initFromFITS(self, hdulist):
+		card = hdulist[0]
+	
 		# Search for valuable metadata in the FITS headers
 		for desiredParameter in self.metadata.keys():
 			try:
