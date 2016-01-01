@@ -33,6 +33,7 @@ if __name__ == "__main__":
 	parser.add_argument('-u', '--updateinterval', type=float, help='Time in seconds to keep checking the folder for new data. ')
 	parser.add_argument('-r', '--reducedirectory', type=str, help='Reduction directory. Where to place all the output files produced during the reduction.')
 	parser.add_argument('-b', '--bias', type=str, help='Use this as the bias frame')
+	parser.add_argument('-f', '--flat', type=str, help='Use this as the flat (balance) frame')
 	parser.add_argument('--save', action="store_true", help='Write the input parameters to the config file as default values.')
 	args = parser.parse_args()
 	print args
@@ -42,7 +43,8 @@ if __name__ == "__main__":
 		"UpdateInterval": 1.0,
 		"ReductionDirectory": "/home/rashley/astro/reductions",
 		"SearchPath": ".",
-		"BiasFrame": None
+		"BiasFrame": None,
+		"FlatFrame": None
 	}
 	config.setDefaults(configDefaults)
 
@@ -50,12 +52,28 @@ if __name__ == "__main__":
 	reductionDir = config.assertProperty("ReductionDirectory", args.reducedirectory)
 	searchPath = config.assertProperty("SearchPath",args.searchpath)
 	biasFrameFilename = config.assertProperty("BiasFrame", args.bias)
+	flatFrameFilename = config.assertProperty("FlatFrame", args.flat)
+	print flatFrameFilename
+	if biasFrameFilename==None:	useBias = False
+	else: useBias = True
+	if flatFrameFilename==None:	useFlat = False
+	else: useFlat = True
+		
 	if args.save:
 		config.save()
 		
-	
-	biasFrame = saftClasses.frameObject()
-	biasFrame.initFromFile(biasFrameFilename)
+	if useBias:
+		biasFrame = saftClasses.frameObject()
+		biasFrame.initFromFile(biasFrameFilename)
+		biasFrame.frameType = "bias"
+		print biasFrame.__str__(long=True)
+		
+	if useFlat:
+		flatFrame = saftClasses.frameObject()
+		flatFrame.initFromFile(flatFrameFilename)
+		flatFrame.frameType = "flat"
+		print flatFrame.__str__(long=True)
+		
 	
 	targetString = args.targetstring
 	
@@ -82,7 +100,8 @@ if __name__ == "__main__":
 	
 	frame = saftClasses.frameObject()
 	frame.initFromFile(frameFilename)
-	frame.subtractFrame(biasFrame)
+	if useBias: frame.subtractFrame(biasFrame)
+	if useFlat: frame.divideFrame(flatFrame)
 	frameCounter+=1
 	
 	(height, width) = numpy.shape(frame.imageData)
@@ -102,11 +121,14 @@ if __name__ == "__main__":
 	for index in range(1, numFrames):
 		frame = saftClasses.frameObject(index = frameCounter)
 		frame.initFromFile(fileList[index])
-		frame.subtractFrame(biasFrame)
+		frame.frameType = 'science'
+		if useBias: frame.subtractFrame(biasFrame)
+		if useFlat: frame.divideFrame(flatFrame)
 		frameCounter+=1		
 		ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
 		print frame.__str__(long=True)
 	
+	# Now continue processing new frames as they arrive...
 	try:
 		while True:
 			time.sleep(updateInterval)
@@ -116,7 +138,10 @@ if __name__ == "__main__":
 				hdulist = fits.open(f)
 				frame = saftClasses.frameObject(index = frameCounter)
 				frame.initFromFITS(hdulist)
-				frame.subtractFrame(biasFrame)
+				frame.frameType = 'science'
+				if useBias: frame.subtractFrame(biasFrame)
+				if useFlat: frame.divideFrame(flatFrame)
+				print frame.__str__(long=True)
 				frameCounter+=1		
 				hdulist.close()
 			

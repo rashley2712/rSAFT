@@ -17,7 +17,6 @@ if __name__ == "__main__":
 	parser.add_argument('-e', '--exposuretime', type=float, help='Exposure time for the simulated exposures.')
 	parser.add_argument('-r', '--readouttime', type=float, help='Readout time for the simulated exposures.')
 	args = parser.parse_args()
-	print args
 	
 	config = configHelper.configClass("simulateSAFTRun")
 	configDefaults  = {

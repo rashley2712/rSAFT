@@ -17,10 +17,9 @@ class frameObject:
 	}
 	
 	def __init__(self, index = 0):
-		self.bitmap = None
 		self.filename = None
 		self.index = index
-		self.frameType = None     # Should be bias/flat/dark/science/balance
+		self.frameType = "undefined"     # Should be bias/flat/dark/science/balance
 		
 	def boostedImage(self, lower=20, upper=99):
 		return generalUtils.percentiles(self.imageData, lower, upper)
@@ -30,11 +29,25 @@ class frameObject:
 		self.initFromFITS(hdulist)
 		hdulist.close()
 		
+	def computeMedian(self):
+		self.median = numpy.median(self.imageData)
+		self.min = numpy.min(self.imageData)
+		self.max = numpy.max(self.imageData)
+		return self.median
+		
 	def subtractFrame(self, otherFrame):
 		if (self.xBinning != otherFrame.xBinning) or (self.yBinning != otherFrame.yBinning):
 			print "WARNING: Unable to subtract a frame with different binning!"
 			return
 		self.imageData = numpy.subtract(self.imageData, otherFrame.imageData)
+		self.computeMedian()
+		
+	def divideFrame(self, otherFrame):
+		if (self.xBinning != otherFrame.xBinning) or (self.yBinning != otherFrame.yBinning):
+			print "WARNING: Unable to subtract a frame with different binning!"
+			return
+		self.imageData = numpy.divide(self.imageData, otherFrame.imageData)
+		self.computeMedian()
 		
 	def initFromFITS(self, hdulist):
 		card = hdulist[0]
@@ -49,11 +62,15 @@ class frameObject:
 			setattr(self, desiredParameter, value)
 		self.imageData = hdulist[0].data
 		self.xSize, self.ySize = numpy.shape(self.imageData)
+		self.computeMedian()
 
 	def __str__(self, long = False):
 		printout = "Frame number: %d \tMJD: %f"%(self.index, self.MJD)
 		if long:
+			printout+= "\nType: %s"%self.frameType
 			printout+= "\nBinning: (%dx%d) \tDimensions: (%dx%d)"%(self.xBinning, self.yBinning, self.xSize, self.ySize)
+			printout+= "\nMedian: %d \t Min, Max: (%.2f, %.2f)"%(self.median, self.min, self.max)
+			printout+= "\n"
 			
 			
 		return printout
