@@ -42,6 +42,13 @@ class frameObject:
 		self.imageData = numpy.subtract(self.imageData, otherFrame.imageData)
 		self.computeMedian()
 		
+	def addFrame(self, otherFrame):
+		if (self.xBinning != otherFrame.xBinning) or (self.yBinning != otherFrame.yBinning):
+			print "WARNING: Unable to subtract a frame with different binning!"
+			return
+		self.imageData = numpy.add(self.imageData, otherFrame.imageData)
+		self.computeMedian()	
+		
 	def divideFrame(self, otherFrame):
 		if (self.xBinning != otherFrame.xBinning) or (self.yBinning != otherFrame.yBinning):
 			print "WARNING: Unable to subtract a frame with different binning!"

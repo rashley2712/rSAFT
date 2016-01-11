@@ -6,7 +6,13 @@ import numpy
 import ppgplot
 import generalUtils, configHelper
 import saftClasses
+import copy
 from astropy.io import fits
+
+from astropy.stats import median_absolute_deviation as mad
+from photutils import datasets
+from photutils import daofind
+from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 
 def checkForNewFiles():
 	newFiles = []
@@ -23,6 +29,16 @@ def checkForNewFiles():
 				newFiles.append(filename)
 				print "found new file", filename
 	return newFiles
+	
+def plotSources(sources):
+	ppgplot.pgsfs(2)   # Set fill style to 'outline'
+	ppgplot.pgsci(3)   # Set the colour to 'green'
+	for s in sources:
+		x, y = s['xcentroid'], s['ycentroid']
+		radius = s['sharpness']* 40.
+		ppgplot.pgcirc(x,y, radius)
+	
+
 
 
 if __name__ == "__main__":
@@ -102,6 +118,8 @@ if __name__ == "__main__":
 	frame.initFromFile(frameFilename)
 	if useBias: frame.subtractFrame(biasFrame)
 	if useFlat: frame.divideFrame(flatFrame)
+	
+	stackedFrame = copy.deepcopy(frame)
 	frameCounter+=1
 	
 	(height, width) = numpy.shape(frame.imageData)
@@ -113,7 +131,27 @@ if __name__ == "__main__":
 	ppgplot.pgenv(0., width,0., height, 1, -2)
 	imagePlot['pgPlotTransform'] = [0, 1, 0, 0, 0, 1]
 	
+	
+	stackedImagePlot = {}
+	stackedImagePlot['pgplotHandle'] = ppgplot.pgopen('/xs')
+	ppgplot.pgpap(6, 1)
+	ppgplot.pgenv(0., width,0., height, 1, -2)
+	stackedImagePlot['pgPlotTransform'] = [0, 1, 0, 0, 0, 1]
+	
+	""" Draw the latest frame """
+	ppgplot.pgslct(imagePlot['pgplotHandle'])
 	ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+	
+	""" Draw the stacked image """
+	ppgplot.pgslct(stackedImagePlot['pgplotHandle'])
+	ppgplot.pggray(stackedFrame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+	
+	""" Look for sources in the stacked image """	
+	bkg_sigma = 1.48 * mad(stackedFrame.imageData)
+	sources = daofind(stackedFrame.imageData, fwhm=4.0, threshold=3*bkg_sigma)   
+	plotSources(sources)
+	for s in sources:
+		print s
 	
 	if numFrames == 1: sys.exit()
 	
@@ -124,8 +162,12 @@ if __name__ == "__main__":
 		frame.frameType = 'science'
 		if useBias: frame.subtractFrame(biasFrame)
 		if useFlat: frame.divideFrame(flatFrame)
-		frameCounter+=1		
+		stackedFrame.addFrame(frame)
+		
+		frameCounter+=1	
+		ppgplot.pgslct(imagePlot['pgplotHandle'])	
 		ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
+		plotSources(sources)
 		print frame.__str__(long=True)
 	
 	# Now continue processing new frames as they arrive...
@@ -146,7 +188,8 @@ if __name__ == "__main__":
 				hdulist.close()
 			
 				ppgplot.pggray(frame.boostedImage(), 0, width-1, 0, height-1, 0, 255, imagePlot['pgPlotTransform'])
-			
+				plotSources(sources)
+
 	except KeyboardInterrupt:
 		ppgplot.pgclos()
 	
