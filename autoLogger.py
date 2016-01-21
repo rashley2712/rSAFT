@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, sys, os, re, json
+import argparse, sys, os, re, json, subprocess
 import datetime, time, math
 from astropy.io import fits
 import configHelper
@@ -30,6 +30,42 @@ def checkForNewFiles(searchPath):
 			# print "found new file", f
 	return newFiles
 	
+def parseWeatherData(data):
+	weatherObject = {}
+	
+	lines = data.split("\n")
+	for line in lines:
+		# print("Line:", line)
+		if "Data received" in line:
+			datetimeString = line[len("Data received")+1:-2]
+			weatherDateTime = datetime.datetime.strptime(datetimeString, "%Y-%m-%dT%H:%M:%S")
+			weatherObject['date'] = weatherDateTime.strftime("%Y-%m-%d")
+			weatherObject['time'] = weatherDateTime.strftime("%H:%M:%S")
+		try:
+			# print("parts:", line.split(':'))
+			valueString = (line.split(':')[1]).split(' ')[1]
+		except IndexError:
+			continue
+		# print("ValueString:",valueString)
+		if "Wind Direction" in line:
+			weatherObject['WindDirection'] = float(valueString)
+		if "Wind Speed" in line:
+			weatherObject['WindSpeed'] = float(valueString)
+		if "Temperature" in line:
+			weatherObject['Temperature'] = float(valueString)
+		if "Rel. Humidity" in line:
+			weatherObject['RelativeHumidity'] = float(valueString)
+		if "Pressure" in line:
+			weatherObject['Pressure'] = float(valueString)
+		if "Accum. Rain" in line:
+			weatherObject['AccumulatedRain'] = float(valueString)
+		if "Heater Temp." in line:
+			weatherObject['HeaterTemperature'] = float(valueString)
+		if "Heater Voltage" in line:
+			weatherObject['HeaterVoltage'] = float(valueString)
+
+	return weatherObject
+	
 
 if __name__ == "__main__":
 	
@@ -39,6 +75,8 @@ if __name__ == "__main__":
 	parser.add_argument('-u', '--updateinterval', type=float, help='Time in seconds to keep checking the folder for new data. ')
 	parser.add_argument('-o', '--outputpath', type=str, help='Path for the JSON output file that is going to be used in the web page.')
 	parser.add_argument('--save', action="store_true", help='Write the input parameters to the config file as default values.')
+	parser.add_argument('--weather', action="store_true", help='Get the weather data too.')
+	parser.add_argument('-n', '--iterations', type=int, help='Terminate after "n" iterations.')
 	args = parser.parse_args()
 	print(args)
 	
@@ -46,13 +84,17 @@ if __name__ == "__main__":
 	configDefaults  = {
 		"OBSDATAPath": '/home/saft/OBS_DATA',
 		"JSONPath": '/home/saft/www/autologger',
-		"UpdateInterval": 60
+		"UpdateInterval": 60,
+		"WeatherData": False, 
+		"WeatherCommand": "vaisala"
 	}
 	config.setDefaults(configDefaults)
 
 	updateInterval = config.assertProperty("UpdateInterval", args.updateinterval)
 	jsonPath = config.assertProperty("JSONPath", args.outputpath)
 	obsdataPath = config.assertProperty("OBSDATAPath", args.obsdata)
+	weatherData = config.assertProperty("WeatherData", args.weather)
+	weatherCommand = config.assertProperty("WeatherCommand", None)
 	obsdataPath+= "/" + args.date
 		
 	if args.save:
@@ -64,7 +106,9 @@ if __name__ == "__main__":
 	fileList = []
 	targets = []
 	
-	while True:
+	terminate = False;
+	iterationsToGo = args.iterations
+	while not terminate:
 	
 		newFiles = checkForNewFiles(obsdataPath)
 	
@@ -163,5 +207,17 @@ if __name__ == "__main__":
 		outputfile = open(jsonPath + "/" + args.date + ".json", 'wt')
 		json.dump(targetList, outputfile)
 		outputfile.close()
+		
+		if weatherData:
+			weatherResponse = subprocess.check_output(weatherCommand, shell=True)
+			weatherObject = parseWeatherData(weatherResponse.decode('utf-8'))
+			print("Vaisala weather data:", weatherObject)
+			outputfile = open(jsonPath + "/weather.json", 'wt')
+			json.dump(weatherObject, outputfile)
+			outputfile.close()
 	
+		if iterationsToGo!= None:
+			iterationsToGo-= 1
+			print ("Iterations to go: ", iterationsToGo)
+			if iterationsToGo==0: terminate = True
 		time.sleep(updateInterval)
