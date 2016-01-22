@@ -3,12 +3,13 @@
 import os, json, numpy
 
 class configClass:
-	def __init__(self, name="unknownapp"):
+	def __init__(self, name="unknownapp", debug=False):
 		self._appName = name
 		self._filename = getUserHome() +"/.config/" + self._appName + "/" + self._appName + ".conf"
 		createConfigFolder(self._appName)
 		self._alreadyExists = False
-		# print "DEBUG: config file is at:", self._filename
+		self._debug = debug
+		if self._debug: print("DEBUG: config file is at:", self._filename)
 		self.load()
 	
 	def setDefaults(self, defaults):
@@ -21,22 +22,22 @@ class configClass:
 			property = getattr(self, name)
 		except AttributeError:
 			property = None
-			print("Could not find value for property", name)
+			if self._debug: print("Could not find value for property", name)
 		return property	
 		
 	def assertProperty(self, name, value):
 		if value!=None:
 			self.setProperty(name, value)
-			print("overriding default", name, value)
+			if self._debug: print("overriding default", name, value)
 			return value
 		try: 
 			value = getattr(self, name)
-			print("Retrieved value:", name, value)
+			if self._debug: print("Retrieved value:", name, value)
 		except AttributeError:
-			print("WARNING: %s not specified and no default set."%name)
+			if self._debug: print("WARNING: %s not specified and no default set."%name)
 			return
 			
-		print(name, value)
+		if self._debug: print(name, value)
 		return value
 
 	def setProperty(self, key, value):
@@ -48,7 +49,7 @@ class configClass:
 		if os.path.exists(filename):
 			self._alreadyExists = True
 		else:
-			print("DEBUG: The configfile, %s, does not exist yet."%filename)
+			if self._debug: print("DEBUG: The configfile, %s, does not exist yet."%filename)
 			return False
 	
 		inputfile = open(filename, "r")
@@ -56,12 +57,12 @@ class configClass:
 		for key in jsonObject.keys():
 			keyString = str(key)
 			value = jsonObject[key]
-			print(type(value))
+			# print(type(value))
 			# if type(value) is unicode: 
 			#  	value = str(value)
 			if type(value) is list:
 				value = numpy.array(value)
-			print("Loading", key, value)
+			if self._debug: print("Loading", key, value)
 			setattr(self, key, value)
 		inputfile.close()
 		return True
@@ -96,12 +97,12 @@ def createConfigFolder(appName):
 	configPath = homeDir + "/.config"
 	if not os.path.exists(configPath):
 		os.mkdir(configPath)
-		print("DEBUG: Creating directory %s"%configPath)
+		if self._debug: print("DEBUG: Creating directory %s"%configPath)
 		
 	fullConfigPath = configPath + "/" + appName
 	if not os.path.exists(fullConfigPath):
 		os.mkdir(fullConfigPath)
-		print("DEBUG: Creating directory %s"%fullConfigPath)
+		if self._debug: print("DEBUG: Creating directory %s"%fullConfigPath)
 	
 
 	
