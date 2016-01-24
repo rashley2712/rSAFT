@@ -3,7 +3,7 @@
 import argparse, sys, os, re, json, subprocess
 import datetime, time, math
 from astropy.io import fits
-import configHelper
+import configHelper, saftClasses
 
 def convertDMStoRadians(dmsStr):
 	""" Format for input 'DD:MM:SS.dd' """
@@ -15,7 +15,24 @@ def convertDMStoRadians(dmsStr):
 	seconds = float(pieces[2])
 	
 	return (degrees + minutes/60.0 + seconds / 3600.0)/180.*math.pi
-			
+	
+def getMostRecentFITSFile(searchPath):
+	try:
+		files = os.listdir(searchPath)
+		fileList= []
+		for f in files:
+			extension = f.split(".")[-1]
+			if "fits" in extension:
+				fileObject = {}
+				fileObject['name'] = f
+				fileObject['date'] = os.path.getctime(searchPath + '/' + f)
+				fileList.append(fileObject)
+	except:
+		print("Could not find the directory %s. Sorry."%searchPath)
+	fileList = sorted(fileList, key=lambda file: file['date'], reverse=True)
+	return fileList[0]['name']
+	
+				
 	
 def checkForNewFiles(searchPath):
 	newFiles = []
@@ -220,4 +237,13 @@ if __name__ == "__main__":
 			iterationsToGo-= 1
 			print ("Iterations to go: ", iterationsToGo)
 			if iterationsToGo==0: terminate = True
+			
+		print ("latest file:", getMostRecentFITSFile(obsdataPath))
+		
+		frame = saftClasses.frameObject(index = 0)
+		frame.initFromFile(getMostRecentFITSFile(obsdataPath))
+		outputPNGFilename = jsonPath + "/latestImage.png"
+		frame.saveAsPNG(outputPNGFilename)
+		
+		
 		time.sleep(updateInterval)
