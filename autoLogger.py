@@ -241,7 +241,7 @@ if __name__ == "__main__":
 		print ("latest file:", getMostRecentFITSFile(obsdataPath))
 		
 		frame = saftClasses.frameObject(index = 0)
-		frame.initFromFile(getMostRecentFITSFile(obsdataPath))
+		frame.initFromFile(obsdataPath + "/" + getMostRecentFITSFile(obsdataPath))
 		outputPNGFilename = jsonPath + "/latestImage.png"
 		frame.saveAsPNG(outputPNGFilename)
 		
