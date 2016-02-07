@@ -6,7 +6,7 @@ class configClass:
 	def __init__(self, name="unknownapp", debug=False):
 		self._appName = name
 		self._filename = getUserHome() +"/.config/" + self._appName + "/" + self._appName + ".conf"
-		createConfigFolder(self._appName)
+		self.createConfigFolder(self._appName)
 		self._alreadyExists = False
 		self._debug = debug
 		if self._debug: print("DEBUG: config file is at:", self._filename)
@@ -85,25 +85,23 @@ class configClass:
 		outputfile = open(filename, 'w')
 		json.dump(object, outputfile, indent = 4)
 		outputfile.close()	
+		
+	def createConfigFolder(self, appName):
+		homeDir = getUserHome()
+	
+		configPath = homeDir + "/.config"
+		if not os.path.exists(configPath):
+			os.mkdir(configPath)
+			if self._debug: print("DEBUG: Creating directory %s"%configPath)
+		
+		fullConfigPath = configPath + "/" + appName
+		if not os.path.exists(fullConfigPath):
+			os.mkdir(fullConfigPath)
+			if self._debug: print("DEBUG: Creating directory %s"%fullConfigPath)
+
 
 def getUserHome():
 	homeDir = os.path.expanduser('~')
 	# print "DEBUG: The user's home directory is %s."%homeDir
 	return homeDir
 
-def createConfigFolder(appName):
-	homeDir = getUserHome()
-	
-	configPath = homeDir + "/.config"
-	if not os.path.exists(configPath):
-		os.mkdir(configPath)
-		if self._debug: print("DEBUG: Creating directory %s"%configPath)
-		
-	fullConfigPath = configPath + "/" + appName
-	if not os.path.exists(fullConfigPath):
-		os.mkdir(fullConfigPath)
-		if self._debug: print("DEBUG: Creating directory %s"%fullConfigPath)
-	
-
-	
-		
